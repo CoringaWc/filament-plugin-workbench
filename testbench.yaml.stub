@@ -1,0 +1,25 @@
+# testbench.yaml — gerado a partir de packages/workbench/testbench.yaml.stub
+#
+# Este arquivo é específico de cada plugin.
+# Copie como testbench.yaml na raiz do plugin e ajuste:
+#   - providers: liste os ServiceProviders do seu plugin
+#   - env.APP_KEY: gere uma chave com `php artisan key:generate --show`
+#   - env.DB_*: configure o banco SQLite (padrão) ou outro driver
+
+providers:
+  # - Vendor\YourPlugin\YourPluginServiceProvider
+
+env:
+  APP_KEY: "base64:REPLACE_WITH_GENERATED_KEY"
+  APP_ENV: testing
+  APP_DEBUG: true
+
+  DB_CONNECTION: sqlite
+  DB_DATABASE: ":memory:"
+
+  CACHE_STORE: array
+  SESSION_DRIVER: array
+  QUEUE_CONNECTION: sync
+
+  LOG_CHANNEL: stderr
+  LOG_LEVEL: debug

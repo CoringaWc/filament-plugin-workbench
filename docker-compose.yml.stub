@@ -1,0 +1,43 @@
+# docker-compose.yml — gerado a partir de packages/workbench/docker-compose.yml.stub
+#
+# Pré-requisitos:
+#   git submodule add git@github.com:CoringaWc/filament-plugin-workbanch.git packages/workbench
+#   git submodule update --init --recursive
+#
+# Variáveis de ambiente disponíveis via .env na raiz do plugin:
+#   WORKBENCH_PORT   → porta do servidor de desenvolvimento (padrão: 8001)
+#   WWWUSER          → UID do usuário host (padrão: 1000)
+#   WWWGROUP         → GID do grupo host (padrão: 1000)
+
+services:
+  php:
+    build:
+      context: ./packages/workbench/docker/php
+      dockerfile: Dockerfile
+      args:
+        WWWUSER: ${WWWUSER:-1000}
+        WWWGROUP: ${WWWGROUP:-1000}
+    working_dir: /var/www/html
+    user: "${WWWUSER:-1000}:${WWWGROUP:-1000}"
+    environment:
+      COMPOSER_HOME: /tmp/composer
+      COMPOSER_CACHE_DIR: /tmp/composer/cache
+      NPM_CONFIG_CACHE: /tmp/.npm
+      XDG_CACHE_HOME: /tmp/.cache
+      WORKBENCH_PORT: ${WORKBENCH_PORT:-8001}
+    ports:
+      - "${WORKBENCH_PORT:-8001}:${WORKBENCH_PORT:-8001}"
+    volumes:
+      - .:/var/www/html
+      - composer-cache:/tmp/composer/cache
+      - npm-cache:/tmp/.npm
+    command:
+      - sh
+      - -lc
+      - >
+        composer run bootstrap:workbench &&
+        exec php vendor/bin/testbench serve --host=0.0.0.0 --port=${WORKBENCH_PORT:-8001} --ansi
+
+volumes:
+  composer-cache:
+  npm-cache:
