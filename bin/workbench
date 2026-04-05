@@ -104,7 +104,7 @@ with open(sys.argv[2]) as f:
     d=json.load(f)
 providers=d.get('extra',{}).get('laravel',{}).get('providers',[])
 if providers:
-    lines='\n'.join('  - \"'+p+'\"' for p in providers)
+    lines='\n'.join("  - '"+p+"'" for p in providers)
     block='providers:\n'+lines+'\n'
     content=re.sub(r'providers:\n(\s*#[^\n]*\n)+',lambda m:block,content)
     with open(sys.argv[1],'w') as f:
