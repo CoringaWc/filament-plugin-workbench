@@ -97,19 +97,25 @@ _fill_providers() {
         return 0
     fi
 
-    py_script="import json,re,sys
+    py_script="import json,os,re,sys,base64
 with open(sys.argv[1]) as f:
     content=f.read()
 with open(sys.argv[2]) as f:
     d=json.load(f)
 providers=d.get('extra',{}).get('laravel',{}).get('providers',[])
+messages=[]
 if providers:
-    lines='\n'.join("  - '"+p+"'" for p in providers)
+    lines='\n'.join(\"  - '\"+p+\"'\" for p in providers)
     block='providers:\n'+lines+'\n'
     content=re.sub(r'providers:\n(\s*#[^\n]*\n)+',lambda m:block,content)
-    with open(sys.argv[1],'w') as f:
-        f.write(content)
-    print('Providers set: '+', '.join(providers))"
+    messages.append('Providers set: '+', '.join(providers))
+if 'REPLACE_WITH_GENERATED_KEY' in content:
+    real_key='base64:'+base64.b64encode(os.urandom(32)).decode()
+    content=content.replace('\"base64:REPLACE_WITH_GENERATED_KEY\"','\"'+real_key+'\"')
+    messages.append('APP_KEY generated.')
+with open(sys.argv[1],'w') as f:
+    f.write(content)
+print('\n'.join(messages))"
 
     if command -v python3 > /dev/null 2>&1; then
         result=$(python3 -c "$py_script" "$testbench_yaml" "$composer_json" 2>/dev/null || true)

@@ -2,7 +2,7 @@
 
 set -eu
 
-if [ ! -f vendor/autoload.php ] || [ composer.lock -nt vendor/autoload.php ]; then
+if [ ! -f vendor/autoload.php ] || [ ! -f composer.lock ] || [ composer.lock -nt vendor/autoload.php ]; then
     composer install --no-interaction --prefer-dist
 fi
 

@@ -9,9 +9,10 @@
 #   git submodule update --init --recursive
 #
 # Variáveis de ambiente disponíveis via .env na raiz do plugin:
-#   WORKBENCH_PORT   → porta do servidor de desenvolvimento (padrão: 8001)
-#   WWWUSER          → UID do usuário host (padrão: 1000)
-#   WWWGROUP         → GID do grupo host (padrão: 1000)
+#   WORKBENCH_PORT          → porta do servidor de desenvolvimento (padrão: 8001)
+#   WWWUSER                 → UID do usuário host (padrão: 1000)
+#   WWWGROUP                → GID do grupo host (padrão: 1000)
+#   PHP_CLI_SERVER_WORKERS  → número de workers do PHP CLI server (padrão: 4)
 
 services:
   php:
@@ -39,6 +40,7 @@ services:
       - sh
       - -lc
       - >
+        touch vendor/orchestra/testbench-core/laravel/database/database.sqlite &&
         composer run bootstrap:workbench &&
         exec php vendor/bin/testbench serve --host=0.0.0.0 --port=${WORKBENCH_PORT:-8001} --ansi
 
