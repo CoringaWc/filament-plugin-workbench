@@ -105,7 +105,8 @@ with open(sys.argv[2]) as f:
 providers=d.get('extra',{}).get('laravel',{}).get('providers',[])
 if providers:
     lines='\n'.join('  - \"'+p+'\"' for p in providers)
-    content=re.sub(r'providers:\n(\s*#[^\n]*\n)+','providers:\n'+lines+'\n',content)
+    block='providers:\n'+lines+'\n'
+    content=re.sub(r'providers:\n(\s*#[^\n]*\n)+',lambda m:block,content)
     with open(sys.argv[1],'w') as f:
         f.write(content)
     print('Providers set: '+', '.join(providers))"
