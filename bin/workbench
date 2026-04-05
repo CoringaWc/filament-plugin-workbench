@@ -1,0 +1,282 @@
+#!/usr/bin/env sh
+# shellcheck shell=sh
+set -eu
+
+# ---------------------------------------------------------------------------
+# filament-plugin-workbanch — workbench CLI
+# Bootstraps Filament plugin development environments (Docker only, no PHP/
+# Composer needed on the host).
+# ---------------------------------------------------------------------------
+
+# ANSI colours (disabled when not a terminal)
+if [ -t 1 ]; then
+    RED='\033[0;31m'
+    GREEN='\033[0;32m'
+    YELLOW='\033[1;33m'
+    BLUE='\033[0;34m'
+    BOLD='\033[1m'
+    RESET='\033[0m'
+else
+    RED='' GREEN='' YELLOW='' BLUE='' BOLD='' RESET=''
+fi
+
+_info()    { printf "${GREEN}[workbench]${RESET} %s\n" "$*"; }
+_warn()    { printf "${YELLOW}[workbench] warn:${RESET} %s\n" "$*"; }
+_error()   { printf "${RED}[workbench] error:${RESET} %s\n" "$*" >&2; }
+_section() { printf "\n${BOLD}${BLUE}▶  %s${RESET}\n" "$*"; }
+
+# ---------------------------------------------------------------------------
+# Resolve the real path of this script (handles vendor/bin/ symlinks)
+# ---------------------------------------------------------------------------
+_real_path() {
+    target="$1"
+    cd "$(dirname "$target")"
+    target="$(basename "$target")"
+    while [ -L "$target" ]; do
+        target="$(readlink "$target")"
+        cd "$(dirname "$target")"
+        target="$(basename "$target")"
+    done
+    printf "%s/%s" "$(pwd -P)" "$target"
+}
+
+SELF="$(_real_path "$0")"
+WORKBENCH_BIN_DIR="$(dirname "$SELF")"
+WORKBENCH_SOURCE="$(dirname "$WORKBENCH_BIN_DIR")"
+
+# ---------------------------------------------------------------------------
+# Find the plugin root: walk up from $PWD looking for a composer.json that
+# is NOT the filament-plugin-workbanch package itself.
+# ---------------------------------------------------------------------------
+_find_plugin_root() {
+    dir="$PWD"
+    while [ "$dir" != "/" ]; do
+        if [ -f "$dir/composer.json" ] && \
+           ! grep -q '"name"[[:space:]]*:[[:space:]]*"coringawc/filament-plugin-workbanch"' "$dir/composer.json" 2>/dev/null; then
+            printf "%s" "$dir"
+            return 0
+        fi
+        dir="$(dirname "$dir")"
+    done
+    _error "Could not find plugin root (no composer.json found in parent directories)."
+    return 1
+}
+
+# ---------------------------------------------------------------------------
+# Parse composer.json for extra.laravel.providers using python3 or Docker.
+# Prints one provider per line, or empty string if none found.
+# ---------------------------------------------------------------------------
+_get_providers() {
+    composer_json="$1"
+    py_script="import json,sys
+d=json.load(open(sys.argv[1]))
+providers=d.get('extra',{}).get('laravel',{}).get('providers',[])
+print('\n'.join(providers))"
+
+    if command -v python3 > /dev/null 2>&1; then
+        python3 -c "$py_script" "$composer_json" 2>/dev/null || true
+    else
+        _warn "python3 not found — using Docker to parse composer.json (one-time pull)"
+        plugin_root="$(dirname "$composer_json")"
+        docker run --rm -v "${plugin_root}:/work" -w /work python:3-alpine \
+            python3 -c "$py_script" composer.json 2>/dev/null || true
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Fill providers section in a testbench.yaml file.
+# ---------------------------------------------------------------------------
+_fill_providers() {
+    testbench_yaml="$1"
+    composer_json="$2"
+
+    providers=$(_get_providers "$composer_json")
+
+    if [ -z "$providers" ]; then
+        _warn "No providers found in extra.laravel.providers — edit $testbench_yaml manually."
+        return 0
+    fi
+
+    py_script="import json,re,sys
+with open(sys.argv[1]) as f:
+    content=f.read()
+with open(sys.argv[2]) as f:
+    d=json.load(f)
+providers=d.get('extra',{}).get('laravel',{}).get('providers',[])
+if providers:
+    lines='\n'.join('  - \"'+p+'\"' for p in providers)
+    content=re.sub(r'providers:\n(\s*#[^\n]*\n)+','providers:\n'+lines+'\n',content)
+    with open(sys.argv[1],'w') as f:
+        f.write(content)
+    print('Providers set: '+', '.join(providers))"
+
+    if command -v python3 > /dev/null 2>&1; then
+        result=$(python3 -c "$py_script" "$testbench_yaml" "$composer_json" 2>/dev/null || true)
+        [ -n "$result" ] && _info "$result"
+    else
+        plugin_root="$(dirname "$composer_json")"
+        yaml_rel="$(basename "$testbench_yaml")"
+        docker run --rm -v "${plugin_root}:/work" -w /work python:3-alpine \
+            python3 -c "$py_script" "$yaml_rel" composer.json 2>/dev/null || true
+        _info "Providers set from composer.json."
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Prompt yes/no. Returns 0 for yes, 1 for no.
+# ---------------------------------------------------------------------------
+_ask_yn() {
+    printf "${YELLOW}  ?${RESET} %s [y/N] " "$1"
+    read -r _answer
+    case "$_answer" in
+        [Yy]*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# ---------------------------------------------------------------------------
+# Copy a stub to dest. If dest exists, ask before overwriting.
+# Returns 0 if a new file was written, 1 if existing file was kept.
+# ---------------------------------------------------------------------------
+_copy_stub() {
+    src="$1"
+    dest="$2"
+    label="$3"
+
+    if [ ! -f "$src" ]; then
+        _error "Stub not found: $src"
+        exit 1
+    fi
+
+    if [ -f "$dest" ]; then
+        _warn "$label already exists."
+        if _ask_yn "Overwrite $label?"; then
+            cp "$src" "$dest"
+            _info "$label overwritten."
+            return 0
+        else
+            _info "Keeping existing $label."
+            return 1
+        fi
+    fi
+
+    cp "$src" "$dest"
+    _info "$label created."
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# Ensure Docker is available.
+# ---------------------------------------------------------------------------
+_require_docker() {
+    if ! command -v docker > /dev/null 2>&1; then
+        _error "Docker is not installed or not in PATH."
+        _error "Install it from https://docs.docker.com/get-docker/"
+        exit 1
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Commands
+# ---------------------------------------------------------------------------
+cmd_up() {
+    _require_docker
+
+    PLUGIN_ROOT=$(_find_plugin_root)
+    _info "Plugin root : $PLUGIN_ROOT"
+    _info "Workbench   : $WORKBENCH_SOURCE"
+
+    cd "$PLUGIN_ROOT"
+
+    _section "Checking docker-compose.yml"
+    _copy_stub \
+        "$WORKBENCH_SOURCE/docker-compose.yml.stub" \
+        "$PLUGIN_ROOT/docker-compose.yml" \
+        "docker-compose.yml" || true
+
+    _section "Checking testbench.yaml"
+    if _copy_stub \
+        "$WORKBENCH_SOURCE/testbench.yaml.stub" \
+        "$PLUGIN_ROOT/testbench.yaml" \
+        "testbench.yaml"; then
+        _section "Auto-detecting providers from composer.json"
+        _fill_providers "$PLUGIN_ROOT/testbench.yaml" "$PLUGIN_ROOT/composer.json"
+    fi
+
+    _section "Starting container"
+    docker compose up --build -d
+
+    _info "Container started. Following logs (Ctrl+C to stop)..."
+    docker compose logs -f php
+}
+
+cmd_down() {
+    _require_docker
+    PLUGIN_ROOT=$(_find_plugin_root)
+    cd "$PLUGIN_ROOT"
+    _section "Stopping container"
+    docker compose down
+    _info "Done."
+}
+
+cmd_fresh() {
+    _require_docker
+    PLUGIN_ROOT=$(_find_plugin_root)
+    cd "$PLUGIN_ROOT"
+    _section "Running migrate:fresh --seed inside container"
+    docker compose exec php sh -c "composer run fresh:workbench"
+}
+
+cmd_logs() {
+    _require_docker
+    PLUGIN_ROOT=$(_find_plugin_root)
+    cd "$PLUGIN_ROOT"
+    docker compose logs -f php
+}
+
+cmd_shell() {
+    _require_docker
+    PLUGIN_ROOT=$(_find_plugin_root)
+    cd "$PLUGIN_ROOT"
+    _section "Opening shell inside container"
+    docker compose exec php sh
+}
+
+cmd_help() {
+    printf "${BOLD}workbench${RESET} — Filament plugin development environment\n"
+    printf "\n${BOLD}USAGE${RESET}\n"
+    printf "  workbench <command>\n"
+    printf "\n${BOLD}COMMANDS${RESET}\n"
+    printf "  ${GREEN}up${RESET}      Copy templates (if needed), start container, follow logs\n"
+    printf "  ${GREEN}down${RESET}    Stop and remove container\n"
+    printf "  ${GREEN}fresh${RESET}   Run migrate:fresh --seed inside the container\n"
+    printf "  ${GREEN}logs${RESET}    Follow container logs in real time\n"
+    printf "  ${GREEN}shell${RESET}   Open an interactive shell inside the container\n"
+    printf "  ${GREEN}help${RESET}    Show this help message\n"
+    printf "\n${BOLD}INSTALLATION — via git submodule (recommended, no Composer needed)${RESET}\n"
+    printf "  git submodule add https://github.com/CoringaWc/filament-plugin-workbanch.git packages/workbench\n"
+    printf "  ./packages/workbench/bin/workbench up\n"
+    printf "\n${BOLD}INSTALLATION — via Composer${RESET}\n"
+    printf "  docker run --rm -v \"\$(pwd):/app\" -w /app composer:2 require --dev coringawc/filament-plugin-workbanch\n"
+    printf "  ./vendor/bin/workbench up\n"
+}
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+COMMAND="${1:-help}"
+shift 2>/dev/null || true
+
+case "$COMMAND" in
+    up)              cmd_up ;;
+    down)            cmd_down ;;
+    fresh)           cmd_fresh ;;
+    logs)            cmd_logs ;;
+    shell)           cmd_shell ;;
+    help|--help|-h)  cmd_help ;;
+    *)
+        _error "Unknown command: $COMMAND"
+        printf "Run 'workbench help' for usage.\n" >&2
+        exit 1
+        ;;
+esac
