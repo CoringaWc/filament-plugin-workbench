@@ -1,20 +1,16 @@
-FROM node:22-bookworm-slim@sha256:80fdb3f57c815e1b638d221f30a826823467c4a56c8f6a8d7aa091cd9b1675ea AS node
-
-# CVE-2026-33671: upgrade picomatch bundled in npm from 4.0.3 -> 4.0.4 before COPY
-RUN cd /tmp \
-    && npm pack picomatch@4.0.4 --quiet \
-    && tar xf /tmp/picomatch-4.0.4.tgz -C /tmp \
-    && cp -a /tmp/package/. /usr/local/lib/node_modules/npm/node_modules/picomatch/ \
-    && rm -rf /tmp/picomatch-4.0.4.tgz /tmp/package
-
 FROM php:8.4-cli-bookworm@sha256:15bd32b1c20ec9bb8edd09849745b5345105001b9780c873af7adae4e5d0cf54
 
 ARG WWWUSER=1000
 ARG WWWGROUP=1000
 
+# Node.js 22.22.2 — installed from official tarball (SHA256-verified) to avoid
+# any base-image vulnerability scanner false positives from FROM node:* stages.
+# CVE-2026-33671: picomatch bundled in npm 10.9.7 is patched to 4.0.4 in the
+# same RUN layer so it is never present in any image layer.
+ARG NODE_VERSION=22.22.2
+ARG NODE_SHA256=88fd1ce767091fd8d4a99fdb2356e98c819f93f3b1f8663853a2dee9b438068a
+
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-COPY --from=node /usr/local/bin/node /usr/local/bin/node
-COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -22,14 +18,21 @@ RUN apt-get update \
         libicu-dev \
         libzip-dev \
         unzip \
+        xz-utils \
         zip \
     && docker-php-ext-install -j"$(nproc)" \
         intl \
         pcntl \
         zip \
-    && ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
-    && ln -sf /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx \
-    && ln -sf /usr/local/lib/node_modules/corepack/dist/corepack.js /usr/local/bin/corepack \
+    && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+        -o /tmp/node.tar.xz \
+    && echo "${NODE_SHA256}  /tmp/node.tar.xz" | sha256sum -c - \
+    && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 \
+    && rm /tmp/node.tar.xz \
+    && cd /tmp && npm pack picomatch@4.0.4 --quiet \
+    && tar xf /tmp/picomatch-4.0.4.tgz -C /tmp \
+    && cp -a /tmp/package/. /usr/local/lib/node_modules/npm/node_modules/picomatch/ \
+    && rm -rf /tmp/picomatch-4.0.4.tgz /tmp/package \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
