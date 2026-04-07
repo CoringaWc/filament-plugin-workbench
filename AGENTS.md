@@ -39,11 +39,16 @@ filament-acl/
   packages/
     workbench/              ← git submodule → filament-plugin-workbench (this repo)
   workbench/                ← plugin-specific workbench code (models, seeders, etc.)
-  docker-compose.yml        ← copied from stub; build.context points to packages/workbench/docker/php
+  docker-compose.yml        ← copied from stub; build.context resolved dynamically
   testbench.yaml            ← copied from stub; providers auto-filled from composer.json
 ```
 
-The plugin's `docker-compose.yml` always points `build.context` to `./packages/workbench/docker/php`. This means the Dockerfile lives here, not in the plugin.
+The plugin's `docker-compose.yml` has its `build.context` resolved dynamically by `_fix_docker_context()`:
+
+- **Submodule install** → `./packages/workbench/docker/php`
+- **Composer install** → `./vendor/coringawc/filament-plugin-workbench/docker/php`
+
+This means the Dockerfile lives in this package, not in the plugin.
 
 ---
 
@@ -105,9 +110,9 @@ Do not add plugin-specific logic here. Keep it generic.
 
 ### `docker-compose.yml.stub`
 
-- `build.context` must always point to `./packages/workbench/docker/php`
+- `build.context` uses the placeholder `__WORKBENCH_DOCKER_CONTEXT__` — resolved dynamically by `_fix_docker_context()` at copy time
 - Comments must explain all available `.env` variables
-- Must list both HTTPS and SSH installation instructions in the comment header
+- Must list Composer, HTTPS submodule, and SSH submodule installation instructions in the comment header
 
 ### `testbench.yaml.stub`
 
@@ -236,6 +241,10 @@ Copies a stub file to `dest`. If `dest` exists and `force=0`, prompts the user. 
 
 Copies a stub file to `dest`. If `dest` already exists, prints `"$label already exists — skipping."` and returns 1 without prompting.
 
+### `_fix_docker_context(compose_file, plugin_root)`
+
+Replaces the `__WORKBENCH_DOCKER_CONTEXT__` placeholder in the generated `docker-compose.yml` with the real relative path from the plugin root to `$WORKBENCH_SOURCE/docker/php`. Uses `python3 os.path.relpath` (fallback: `realpath --relative-to`, last resort: known path heuristics).
+
 ---
 
 ## Testing Changes
@@ -273,5 +282,5 @@ cd /path/to/filament-acl
 | `docker-compose.yml` (generated)   | Stub only                                | ✅            |
 | `testbench.yaml` (generated)       | Stub only                                | ✅            |
 | `workbench/` app (models, seeders) | ❌                                       | ✅            |
-| `composer.json` scripts            | Injetados automaticamente pelo workbench | ✅ (gerado)   |
+| `composer.json` scripts            | Automatically injected by workbench      | ✅ (generated)|
 | Plugin-specific PHP logic          | ❌                                       | ✅            |

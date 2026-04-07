@@ -267,6 +267,43 @@ _require_docker() {
 }
 
 # ---------------------------------------------------------------------------
+# Replace __WORKBENCH_DOCKER_CONTEXT__ placeholder in docker-compose.yml
+# with the real relative path to docker/php (works for both submodule and
+# Composer installations).
+# ---------------------------------------------------------------------------
+_fix_docker_context() {
+    compose_file="$1"
+    plugin_root="$2"
+
+    docker_php_dir="$WORKBENCH_SOURCE/docker/php"
+    if [ ! -d "$docker_php_dir" ]; then
+        _error "Docker directory not found: $docker_php_dir"
+        exit 1
+    fi
+
+    # Build a relative path from the plugin root to docker/php.
+    # Use python3 if available; fallback to a simple string replacement.
+    if command -v python3 > /dev/null 2>&1; then
+        relative_path=$(python3 -c "import os,sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))" "$docker_php_dir" "$plugin_root")
+    elif command -v realpath > /dev/null 2>&1; then
+        relative_path=$(realpath --relative-to="$plugin_root" "$docker_php_dir")
+    else
+        # Last resort: try common known paths
+        if [ -d "$plugin_root/vendor/coringawc/filament-plugin-workbench/docker/php" ]; then
+            relative_path="vendor/coringawc/filament-plugin-workbench/docker/php"
+        elif [ -d "$plugin_root/packages/workbench/docker/php" ]; then
+            relative_path="packages/workbench/docker/php"
+        else
+            _error "Cannot determine relative path to docker/php. Set build.context in docker-compose.yml manually."
+            return 1
+        fi
+    fi
+
+    sed -i "s|__WORKBENCH_DOCKER_CONTEXT__|./${relative_path}|" "$compose_file"
+    _info "Docker build context set to: ./${relative_path}"
+}
+
+# ---------------------------------------------------------------------------
 # Commands
 # ---------------------------------------------------------------------------
 cmd_up() {
@@ -287,10 +324,12 @@ cmd_up() {
     cd "$PLUGIN_ROOT"
 
     _section "Checking docker-compose.yml"
-    _copy_stub_silent \
+    if _copy_stub_silent \
         "$WORKBENCH_SOURCE/docker-compose.yml.stub" \
         "$PLUGIN_ROOT/docker-compose.yml" \
-        "docker-compose.yml" || true
+        "docker-compose.yml"; then
+        _fix_docker_context "$PLUGIN_ROOT/docker-compose.yml" "$PLUGIN_ROOT"
+    fi
 
     _section "Checking testbench.yaml"
     _copy_stub_silent \
@@ -364,11 +403,13 @@ cmd_install() {
     cd "$PLUGIN_ROOT"
 
     _section "Installing docker-compose.yml"
-    _copy_stub \
+    if _copy_stub \
         "$WORKBENCH_SOURCE/docker-compose.yml.stub" \
         "$PLUGIN_ROOT/docker-compose.yml" \
         "docker-compose.yml" \
-        "$FORCE" || true
+        "$FORCE"; then
+        _fix_docker_context "$PLUGIN_ROOT/docker-compose.yml" "$PLUGIN_ROOT"
+    fi
 
     _section "Installing testbench.yaml"
     _copy_stub \
