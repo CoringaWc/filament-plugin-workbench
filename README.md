@@ -1,4 +1,4 @@
-# filament-plugin-workbanch
+# filament-plugin-workbench
 
 Shared development environment infrastructure for FilamentPHP plugins.
 
@@ -21,7 +21,7 @@ Requires only `git` and `docker`.
 
 ```bash
 # 1. Add the submodule to the plugin repository
-git submodule add https://github.com/CoringaWc/filament-plugin-workbanch.git packages/workbench
+git submodule add https://github.com/CoringaWc/filament-plugin-workbench.git packages/workbench
 git submodule update --init --recursive
 
 # 2. Start the environment (copies templates, detects providers, starts container)
@@ -44,7 +44,7 @@ Use when the plugin already has Composer as its primary workflow.
 
 ```bash
 # 1. Install the package via Docker (no Composer needed on the host)
-docker run --rm -v "$(pwd):/app" -w /app composer:2 require --dev coringawc/filament-plugin-workbanch
+docker run --rm -v "$(pwd):/app" -w /app composer:2 require --dev coringawc/filament-plugin-workbench
 
 # 2. Start the environment
 ./vendor/bin/workbench up
@@ -74,7 +74,7 @@ docker run --rm -v "$(pwd):/app" -w /app composer:2 require --dev coringawc/fila
 
 ```bash
 # In the new plugin repository:
-git submodule add https://github.com/CoringaWc/filament-plugin-workbanch.git packages/workbench
+git submodule add https://github.com/CoringaWc/filament-plugin-workbench.git packages/workbench
 git submodule update --init --recursive
 
 # Start the environment
@@ -121,7 +121,7 @@ my-plugin/
 ```bash
 git submodule update --remote packages/workbench
 git add packages/workbench
-git commit -m "chore: bump filament-plugin-workbanch"
+git commit -m "chore: bump filament-plugin-workbench"
 ```
 
 ---
@@ -129,7 +129,7 @@ git commit -m "chore: bump filament-plugin-workbanch"
 ## Package structure
 
 ```
-filament-plugin-workbanch/
+filament-plugin-workbench/
   bin/
     workbench               ← CLI (POSIX sh, requires only Docker on the host)
   docker/

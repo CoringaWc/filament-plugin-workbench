@@ -2,9 +2,9 @@
 #
 # Prerequisites:
 #   # Via HTTPS (recommended — no SSH key required):
-#   git submodule add https://github.com/CoringaWc/filament-plugin-workbanch.git packages/workbench
+#   git submodule add https://github.com/CoringaWc/filament-plugin-workbench.git packages/workbench
 #   # Via SSH (requires an SSH key configured on GitHub):
-#   git submodule add git@github.com:CoringaWc/filament-plugin-workbanch.git packages/workbench
+#   git submodule add git@github.com:CoringaWc/filament-plugin-workbench.git packages/workbench
 #
 #   git submodule update --init --recursive
 #

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This repository (`filament-plugin-workbanch`) provides **shared Docker infrastructure** for developing FilamentPHP plugins. It does not contain a Laravel application or plugin code — it is a bootstrapping toolset.
+This repository (`filament-plugin-workbench`) provides **shared Docker infrastructure** for developing FilamentPHP plugins. It does not contain a Laravel application or plugin code — it is a bootstrapping toolset.
 
 The primary deliverable is `bin/workbench`: a POSIX-sh CLI that any plugin developer can use to spin up a fully working testbench environment with a single command, requiring only Docker on the host machine.
 
@@ -11,7 +11,7 @@ The primary deliverable is `bin/workbench`: a POSIX-sh CLI that any plugin devel
 ## Repository Structure
 
 ```
-filament-plugin-workbanch/
+filament-plugin-workbench/
   bin/
     workbench               ← POSIX sh CLI — the main deliverable
   docker/
@@ -33,7 +33,7 @@ A plugin (e.g. `filament-acl`) includes this repo as a git submodule:
 ```
 filament-acl/
   packages/
-    workbench/              ← git submodule → filament-plugin-workbanch (this repo)
+    workbench/              ← git submodule → filament-plugin-workbench (this repo)
   workbench/                ← plugin-specific workbench code (models, seeders, etc.)
   docker-compose.yml        ← copied from stub; build.context points to packages/workbench/docker/php
   testbench.yaml            ← copied from stub; providers auto-filled from composer.json

@@ -3,7 +3,7 @@
 set -eu
 
 # ---------------------------------------------------------------------------
-# filament-plugin-workbanch — workbench CLI
+# filament-plugin-workbench — workbench CLI
 # Bootstraps Filament plugin development environments (Docker only, no PHP/
 # Composer needed on the host).
 # ---------------------------------------------------------------------------
@@ -46,13 +46,13 @@ WORKBENCH_SOURCE="$(dirname "$WORKBENCH_BIN_DIR")"
 
 # ---------------------------------------------------------------------------
 # Find the plugin root: walk up from $PWD looking for a composer.json that
-# is NOT the filament-plugin-workbanch package itself.
+# is NOT the filament-plugin-workbench package itself.
 # ---------------------------------------------------------------------------
 _find_plugin_root() {
     dir="$PWD"
     while [ "$dir" != "/" ]; do
         if [ -f "$dir/composer.json" ] && \
-           ! grep -q '"name"[[:space:]]*:[[:space:]]*"coringawc/filament-plugin-workbanch"' "$dir/composer.json" 2>/dev/null; then
+           ! grep -q '"name"[[:space:]]*:[[:space:]]*"coringawc/filament-plugin-workbench"' "$dir/composer.json" 2>/dev/null; then
             printf "%s" "$dir"
             return 0
         fi
@@ -401,10 +401,10 @@ cmd_help() {
     printf "  ${GREEN}shell${RESET}             Open an interactive shell inside the container\n"
     printf "  ${GREEN}help${RESET}              Show this help message\n"
     printf "\n${BOLD}INSTALLATION — via git submodule (recommended, no Composer needed)${RESET}\n"
-    printf "  git submodule add https://github.com/CoringaWc/filament-plugin-workbanch.git packages/workbench\n"
+    printf "  git submodule add https://github.com/CoringaWc/filament-plugin-workbench.git packages/workbench\n"
     printf "  ./packages/workbench/bin/workbench up\n"
     printf "\n${BOLD}INSTALLATION — via Composer${RESET}\n"
-    printf "  docker run --rm -v \"\$(pwd):/app\" -w /app composer:2 require --dev coringawc/filament-plugin-workbanch\n"
+    printf "  docker run --rm -v \"\$(pwd):/app\" -w /app composer:2 require --dev coringawc/filament-plugin-workbench\n"
     printf "  ./vendor/bin/workbench up\n"
 }
 

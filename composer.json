@@ -1,5 +1,5 @@
 {
-    "name": "coringawc/filament-plugin-workbanch",
+    "name": "coringawc/filament-plugin-workbench",
     "description": "Shared Docker infrastructure for Filament plugin workbench environments. Provides a CLI (workbench up/down/fresh/logs/shell) requiring only Docker on the host.",
     "keywords": [
         "filament",
@@ -8,7 +8,7 @@
         "development",
         "cli"
     ],
-    "homepage": "https://github.com/CoringaWc/filament-plugin-workbanch",
+    "homepage": "https://github.com/CoringaWc/filament-plugin-workbench",
     "license": "MIT",
     "authors": [
         {
