@@ -1,122 +1,122 @@
 # filament-plugin-workbanch
 
-Infraestrutura compartilhada de ambiente de desenvolvimento para plugins FilamentPHP.
+Shared development environment infrastructure for FilamentPHP plugins.
 
-Fornece:
+Provides:
 
-- **Dockerfile** genérico (PHP 8.4 + Node 22 + Composer 2)
-- **Entrypoint** com auto-install de dependências
-- **Templates** de `docker-compose.yml` e `testbench.yaml`
-- **CLI `workbench`** para subir, derrubar e gerenciar o ambiente com um único comando
+- **Generic Dockerfile** (PHP 8.4 + Node 22 + Composer 2)
+- **Entrypoint** with automatic dependency installation
+- **Templates** for `docker-compose.yml` and `testbench.yaml`
+- **`workbench` CLI** to start, stop, and manage the environment with a single command
 
-> **Pré-requisito único: Docker instalado.** Não é necessário PHP, Composer ou Node no host.
+> **Only prerequisite: Docker installed.** No PHP, Composer, or Node required on the host.
 
 ---
 
-## Instalação
+## Installation
 
-### Via git submodule (recomendado)
+### Via git submodule (recommended)
 
-Não requer nada além de `git` e `docker`.
+Requires only `git` and `docker`.
 
 ```bash
-# 1. Adicionar o submodule no repositório do plugin
+# 1. Add the submodule to the plugin repository
 git submodule add https://github.com/CoringaWc/filament-plugin-workbanch.git packages/workbench
 git submodule update --init --recursive
 
-# 2. Subir o ambiente (copia templates, detecta providers, sobe container)
+# 2. Start the environment (copies templates, detects providers, starts container)
 ./packages/workbench/bin/workbench up
 ```
 
-Ao executar `workbench up`, o script:
+When running `workbench up`, the script:
 
-- Copia `docker-compose.yml` (via template, se ainda não existir)
-- Copia `testbench.yaml` (via template, se ainda não existir) e preenche os providers do `composer.json`
-- Verifica sempre se todos os providers e scripts do `composer.json` estão configurados
-- Faz o build da imagem Docker e inicia o container
-- Exibe os logs em tempo real (use `-d` para não travar o terminal)
+- Copies `docker-compose.yml` from the template (if it does not exist yet)
+- Copies `testbench.yaml` from the template (if it does not exist yet) and fills providers from `composer.json`
+- Always verifies that all providers and scripts in `composer.json` are configured
+- Builds the Docker image and starts the container
+- Follows container logs in real time (use `-d` to run in the background)
 
 ---
 
 ### Via Composer
 
-Use quando o plugin já usa Composer como workflow principal.
+Use when the plugin already has Composer as its primary workflow.
 
 ```bash
-# 1. Instalar o pacote via Docker (sem precisar de Composer no host)
+# 1. Install the package via Docker (no Composer needed on the host)
 docker run --rm -v "$(pwd):/app" -w /app composer:2 require --dev coringawc/filament-plugin-workbanch
 
-# 2. Subir o ambiente
+# 2. Start the environment
 ./vendor/bin/workbench up
 ```
 
-> **Nota:** ao executar `workbench up` ou `workbench install`, os scripts `bootstrap:workbench`, `serve` e `fresh:workbench` são adicionados automaticamente ao `composer.json` do plugin caso não existam.
+> **Note:** running `workbench up` or `workbench install` automatically adds the `bootstrap:workbench`, `serve`, and `fresh:workbench` scripts to the plugin's `composer.json` if they are not already present.
 
 ---
 
-## Comandos disponíveis
+## Available commands
 
-| Comando                     | Descrição                                                                                     |
-| --------------------------- | --------------------------------------------------------------------------------------------- |
-| `workbench up`              | Copia templates se necessário, verifica providers, injeta scripts, sobe container, exibe logs |
-| `workbench up -d`           | Igual ao `up`, porém inicia em modo detached (não trava terminal)                             |
-| `workbench install`         | Copia templates, preenche providers, injeta scripts no `composer.json` (sem subir container)  |
-| `workbench install --force` | Igual ao `install`, sobrescreve arquivos existentes sem perguntar                             |
-| `workbench down`            | Para e remove o container                                                                     |
-| `workbench fresh`           | Executa `migrate:fresh --seed` dentro do container                                            |
-| `workbench logs`            | Segue os logs do container em tempo real                                                      |
-| `workbench shell`           | Abre shell interativo dentro do container                                                     |
-| `workbench help`            | Exibe ajuda                                                                                   |
+| Command                     | Description                                                                                    |
+| --------------------------- | ---------------------------------------------------------------------------------------------- |
+| `workbench up`              | Copy templates if needed, verify providers, inject scripts, start container, follow logs       |
+| `workbench up -d`           | Same as `up`, but starts in detached mode (does not block the terminal)                        |
+| `workbench install`         | Copy templates, fill providers, inject scripts into `composer.json` (no container start)       |
+| `workbench install --force` | Same as `install`, overwrites existing files without prompting                                 |
+| `workbench down`            | Stop and remove the container                                                                  |
+| `workbench fresh`           | Run `migrate:fresh --seed` inside the container                                                |
+| `workbench logs`            | Follow container logs in real time                                                             |
+| `workbench shell`           | Open an interactive shell inside the container                                                 |
+| `workbench help`            | Show help                                                                                      |
 
 ---
 
-## Como adicionar a um novo plugin
+## Adding to a new plugin
 
 ```bash
-# No repositório do novo plugin:
+# In the new plugin repository:
 git submodule add https://github.com/CoringaWc/filament-plugin-workbanch.git packages/workbench
 git submodule update --init --recursive
 
-# Subir o ambiente pela primeira vez
+# Start the environment
 ./packages/workbench/bin/workbench up
 ```
 
-O script detecta automaticamente os `ServiceProvider`s declarados em `composer.json`
-(`extra.laravel.providers`) e preenche o `testbench.yaml` gerado.
+The script automatically detects `ServiceProvider`s declared in `composer.json`
+(`extra.laravel.providers`) and fills the generated `testbench.yaml`.
 
-Os scripts `bootstrap:workbench`, `serve` e `fresh:workbench` são adicionados automaticamente
-ao `composer.json` do plugin pelo `workbench up` ou `workbench install`, caso não existam.
+The scripts `bootstrap:workbench`, `serve`, and `fresh:workbench` are automatically added
+to the plugin's `composer.json` by `workbench up` or `workbench install` if they are missing.
 
-Após isso, a estrutura do plugin ficará:
+After that, the plugin structure will look like:
 
 ```
-meu-plugin/
+my-plugin/
   packages/
-    workbench/          ← este submodule
-  workbench/            ← código de teste ESPECÍFICO do plugin (models, seeders, etc.)
-  docker-compose.yml    ← gerado pelo workbench up (aponta para packages/workbench/docker/php)
-  testbench.yaml        ← gerado pelo workbench up (providers preenchidos automaticamente)
-  composer.json         ← scripts bootstrap:workbench, fresh:workbench, serve
+    workbench/          ← this submodule
+  workbench/            ← plugin-specific workbench code (models, seeders, etc.)
+  docker-compose.yml    ← generated by workbench up (points to packages/workbench/docker/php)
+  testbench.yaml        ← generated by workbench up (providers filled automatically)
+  composer.json         ← scripts: bootstrap:workbench, serve, fresh:workbench
 ```
 
 ---
 
-## O que fica em cada lugar
+## What belongs where
 
-| Arquivo/Pasta                 | Onde                                           | Por quê                                                    |
-| ----------------------------- | ---------------------------------------------- | ---------------------------------------------------------- |
-| `Dockerfile`, `entrypoint.sh` | **Este pacote** (`packages/workbench/docker/`) | Infraestrutura genérica, reutilizável                      |
-| `docker-compose.yml.stub`     | **Este pacote**                                | Template com `build.context` já configurado                |
-| `testbench.yaml.stub`         | **Este pacote**                                | Template com variáveis comuns documentadas                 |
-| `bin/workbench`               | **Este pacote**                                | CLI de bootstrapping                                       |
-| `workbench/`                  | **No plugin**                                  | Models, seeders, policies, resources específicos do plugin |
-| `composer.json`               | **No plugin**                                  | Scripts `bootstrap:workbench`, `serve`, `fresh:workbench`  |
-| `testbench.yaml`              | **No plugin**                                  | Providers e env específicos                                |
-| `docker-compose.yml`          | **No plugin**                                  | Gerado pelo `workbench up` — pode ser customizado          |
+| File / Folder                 | Location                                       | Why                                                          |
+| ----------------------------- | ---------------------------------------------- | ------------------------------------------------------------ |
+| `Dockerfile`, `entrypoint.sh` | **This package** (`packages/workbench/docker/`)| Generic, reusable infrastructure                             |
+| `docker-compose.yml.stub`     | **This package**                               | Template with `build.context` pre-configured                 |
+| `testbench.yaml.stub`         | **This package**                               | Template with common variables documented                    |
+| `bin/workbench`               | **This package**                               | Bootstrapping CLI                                            |
+| `workbench/`                  | **In the plugin**                              | Plugin-specific models, seeders, policies, resources, etc.   |
+| `composer.json`               | **In the plugin**                              | Scripts `bootstrap:workbench`, `serve`, `fresh:workbench`    |
+| `testbench.yaml`              | **In the plugin**                              | Plugin-specific providers and env                            |
+| `docker-compose.yml`          | **In the plugin**                              | Generated by `workbench up` — can be customised              |
 
 ---
 
-## Atualizando para a versão mais recente
+## Updating to the latest version
 
 ```bash
 git submodule update --remote packages/workbench
@@ -126,16 +126,16 @@ git commit -m "chore: bump filament-plugin-workbanch"
 
 ---
 
-## Estrutura do pacote
+## Package structure
 
 ```
 filament-plugin-workbanch/
   bin/
-    workbench               ← CLI (POSIX sh, funciona com apenas Docker no host)
+    workbench               ← CLI (POSIX sh, requires only Docker on the host)
   docker/
     php/
-      Dockerfile            ← PHP 8.4-cli + Node 22 + Composer 2, usuário não-root
-      entrypoint.sh         ← auto-install vendor/ e node_modules/ ao iniciar
-  docker-compose.yml.stub   ← template de docker-compose.yml para plugins
-  testbench.yaml.stub       ← template de testbench.yaml para plugins
+      Dockerfile            ← PHP 8.4-cli + Node 22 + Composer 2, non-root user
+      entrypoint.sh         ← auto-installs vendor/ and node_modules/ on startup
+  docker-compose.yml.stub   ← docker-compose.yml template for plugins
+  testbench.yaml.stub       ← testbench.yaml template for plugins
 ```

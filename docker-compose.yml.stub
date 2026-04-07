@@ -1,18 +1,18 @@
-# docker-compose.yml — gerado a partir de packages/workbench/docker-compose.yml.stub
+# docker-compose.yml — generated from packages/workbench/docker-compose.yml.stub
 #
-# Pré-requisitos:
-#   # Com HTTPS (recomendado — funciona sem chave SSH):
+# Prerequisites:
+#   # Via HTTPS (recommended — no SSH key required):
 #   git submodule add https://github.com/CoringaWc/filament-plugin-workbanch.git packages/workbench
-#   # Com SSH (requer chave SSH configurada no GitHub):
+#   # Via SSH (requires an SSH key configured on GitHub):
 #   git submodule add git@github.com:CoringaWc/filament-plugin-workbanch.git packages/workbench
 #
 #   git submodule update --init --recursive
 #
-# Variáveis de ambiente disponíveis via .env na raiz do plugin:
-#   WORKBENCH_PORT          → porta do servidor de desenvolvimento (padrão: 8001)
-#   WWWUSER                 → UID do usuário host (padrão: 1000)
-#   WWWGROUP                → GID do grupo host (padrão: 1000)
-#   PHP_CLI_SERVER_WORKERS  → número de workers do PHP CLI server (padrão: 4)
+# Environment variables available via .env in the plugin root:
+#   WORKBENCH_PORT          → development server port (default: 8001)
+#   WWWUSER                 → host user UID (default: 1000)
+#   WWWGROUP                → host group GID (default: 1000)
+#   PHP_CLI_SERVER_WORKERS  → number of PHP CLI server workers (default: 4)
 
 services:
   php:
