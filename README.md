@@ -3,6 +3,7 @@
 Infraestrutura compartilhada de ambiente de desenvolvimento para plugins FilamentPHP.
 
 Fornece:
+
 - **Dockerfile** genérico (PHP 8.4 + Node 22 + Composer 2)
 - **Entrypoint** com auto-install de dependências
 - **Templates** de `docker-compose.yml` e `testbench.yaml`
@@ -28,6 +29,7 @@ git submodule update --init --recursive
 ```
 
 Ao executar `workbench up` pela primeira vez, o script:
+
 - Copia `docker-compose.yml` (via template)
 - Copia `testbench.yaml` (via template) e preenche os providers do `composer.json`
 - Faz o build da imagem Docker e inicia o container
@@ -47,18 +49,23 @@ docker run --rm -v "$(pwd):/app" -w /app composer:2 require --dev coringawc/fila
 ./vendor/bin/workbench up
 ```
 
+> **Nota:** ao executar `workbench up` ou `workbench install`, os scripts `bootstrap:workbench`, `serve` e `fresh:workbench` são adicionados automaticamente ao `composer.json` do plugin caso não existam.
+
 ---
 
 ## Comandos disponíveis
 
-| Comando | Descrição |
-|---|---|
-| `workbench up` | Copia templates se necessário, sobe o container, exibe logs |
-| `workbench down` | Para e remove o container |
-| `workbench fresh` | Executa `migrate:fresh --seed` dentro do container |
-| `workbench logs` | Segue os logs do container em tempo real |
-| `workbench shell` | Abre shell interativo dentro do container |
-| `workbench help` | Exibe ajuda |
+| Comando                     | Descrição                                                                                     |
+| --------------------------- | --------------------------------------------------------------------------------------------- |
+| `workbench up`              | Copia templates se necessário, verifica providers, injeta scripts, sobe container, exibe logs |
+| `workbench up -d`           | Igual ao `up`, porém inicia em modo detached (não trava terminal)                             |
+| `workbench install`         | Copia templates, preenche providers, injeta scripts no `composer.json` (sem subir container)  |
+| `workbench install --force` | Igual ao `install`, sobrescreve arquivos existentes sem perguntar                             |
+| `workbench down`            | Para e remove o container                                                                     |
+| `workbench fresh`           | Executa `migrate:fresh --seed` dentro do container                                            |
+| `workbench logs`            | Segue os logs do container em tempo real                                                      |
+| `workbench shell`           | Abre shell interativo dentro do container                                                     |
+| `workbench help`            | Exibe ajuda                                                                                   |
 
 ---
 
@@ -76,6 +83,9 @@ git submodule update --init --recursive
 O script detecta automaticamente os `ServiceProvider`s declarados em `composer.json`
 (`extra.laravel.providers`) e preenche o `testbench.yaml` gerado.
 
+Os scripts `bootstrap:workbench`, `serve` e `fresh:workbench` são adicionados automaticamente
+ao `composer.json` do plugin pelo `workbench up` ou `workbench install`, caso não existam.
+
 Após isso, a estrutura do plugin ficará:
 
 ```
@@ -92,16 +102,16 @@ meu-plugin/
 
 ## O que fica em cada lugar
 
-| Arquivo/Pasta | Onde | Por quê |
-|---|---|---|
-| `Dockerfile`, `entrypoint.sh` | **Este pacote** (`packages/workbench/docker/`) | Infraestrutura genérica, reutilizável |
-| `docker-compose.yml.stub` | **Este pacote** | Template com `build.context` já configurado |
-| `testbench.yaml.stub` | **Este pacote** | Template com variáveis comuns documentadas |
-| `bin/workbench` | **Este pacote** | CLI de bootstrapping |
-| `workbench/` | **No plugin** | Models, seeders, policies, resources específicos do plugin |
-| `composer.json` | **No plugin** | Scripts `bootstrap:workbench`, `serve`, `fresh:workbench` |
-| `testbench.yaml` | **No plugin** | Providers e env específicos |
-| `docker-compose.yml` | **No plugin** | Gerado pelo `workbench up` — pode ser customizado |
+| Arquivo/Pasta                 | Onde                                           | Por quê                                                    |
+| ----------------------------- | ---------------------------------------------- | ---------------------------------------------------------- |
+| `Dockerfile`, `entrypoint.sh` | **Este pacote** (`packages/workbench/docker/`) | Infraestrutura genérica, reutilizável                      |
+| `docker-compose.yml.stub`     | **Este pacote**                                | Template com `build.context` já configurado                |
+| `testbench.yaml.stub`         | **Este pacote**                                | Template com variáveis comuns documentadas                 |
+| `bin/workbench`               | **Este pacote**                                | CLI de bootstrapping                                       |
+| `workbench/`                  | **No plugin**                                  | Models, seeders, policies, resources específicos do plugin |
+| `composer.json`               | **No plugin**                                  | Scripts `bootstrap:workbench`, `serve`, `fresh:workbench`  |
+| `testbench.yaml`              | **No plugin**                                  | Providers e env específicos                                |
+| `docker-compose.yml`          | **No plugin**                                  | Gerado pelo `workbench up` — pode ser customizado          |
 
 ---
 

@@ -63,69 +63,105 @@ _find_plugin_root() {
 }
 
 # ---------------------------------------------------------------------------
-# Parse composer.json for extra.laravel.providers using python3 or Docker.
-# Prints one provider per line, or empty string if none found.
+# Ensure providers are set in testbench.yaml from composer.json.
+# Also generates APP_KEY if the placeholder is still present.
 # ---------------------------------------------------------------------------
-_get_providers() {
-    composer_json="$1"
-    py_script="import json,sys
-d=json.load(open(sys.argv[1]))
-providers=d.get('extra',{}).get('laravel',{}).get('providers',[])
-print('\n'.join(providers))"
-
-    if command -v python3 > /dev/null 2>&1; then
-        python3 -c "$py_script" "$composer_json" 2>/dev/null || true
-    else
-        _warn "python3 not found — using Docker to parse composer.json (one-time pull)"
-        plugin_root="$(dirname "$composer_json")"
-        docker run --rm -v "${plugin_root}:/work" -w /work python:3-alpine \
-            python3 -c "$py_script" composer.json 2>/dev/null || true
-    fi
-}
-
-# ---------------------------------------------------------------------------
-# Fill providers section in a testbench.yaml file.
-# ---------------------------------------------------------------------------
-_fill_providers() {
+_ensure_providers() {
     testbench_yaml="$1"
     composer_json="$2"
 
-    providers=$(_get_providers "$composer_json")
-
-    if [ -z "$providers" ]; then
-        _warn "No providers found in extra.laravel.providers — edit $testbench_yaml manually."
-        return 0
-    fi
-
-    py_script="import json,os,re,sys,base64
+    py_script="import json,re,sys,os,base64
 with open(sys.argv[1]) as f:
     content=f.read()
 with open(sys.argv[2]) as f:
     d=json.load(f)
 providers=d.get('extra',{}).get('laravel',{}).get('providers',[])
 messages=[]
+sq=chr(39)
 if providers:
-    lines='\n'.join(\"  - '\"+p+\"'\" for p in providers)
-    block='providers:\n'+lines+'\n'
-    content=re.sub(r'providers:\n(\s*#[^\n]*\n)+',lambda m:block,content)
-    messages.append('Providers set: '+', '.join(providers))
+    if '# - Vendor' in content:
+        lines=chr(10).join('  - '+sq+p+sq for p in providers)
+        block='providers:'+chr(10)+lines+chr(10)
+        content=re.sub(r'providers:\n(\s*#[^\n]*\n)+',lambda m:block,content)
+        messages.append('Providers set: '+', '.join(providers))
+    else:
+        added=[]
+        for p in providers:
+            pattern='(?m)^\\s+-\\s+['+sq+chr(34)+']?'+re.escape(p)
+            if not re.search(pattern,content):
+                idx=content.find('providers:'+chr(10))
+                if idx>=0:
+                    ins=idx+len('providers:'+chr(10))
+                    content=content[:ins]+'  - '+sq+p+sq+chr(10)+content[ins:]
+                added.append(p)
+        if added:
+            messages.append('Providers added: '+', '.join(added))
+        else:
+            messages.append('Providers already present.')
+else:
+    messages.append('No providers found in extra.laravel.providers — edit testbench.yaml manually.')
 if 'REPLACE_WITH_GENERATED_KEY' in content:
     real_key='base64:'+base64.b64encode(os.urandom(32)).decode()
-    content=content.replace('\"base64:REPLACE_WITH_GENERATED_KEY\"','\"'+real_key+'\"')
+    content=content.replace(chr(34)+'base64:REPLACE_WITH_GENERATED_KEY'+chr(34),chr(34)+real_key+chr(34))
     messages.append('APP_KEY generated.')
 with open(sys.argv[1],'w') as f:
     f.write(content)
-print('\n'.join(messages))"
+if messages:
+    print(chr(10).join(messages))"
 
     if command -v python3 > /dev/null 2>&1; then
         result=$(python3 -c "$py_script" "$testbench_yaml" "$composer_json" 2>/dev/null || true)
-        [ -n "$result" ] && _info "$result"
+        if [ -n "$result" ]; then
+            printf "%s\n" "$result" | while IFS= read -r line; do
+                _info "$line"
+            done
+        fi
     else
+        _warn "python3 not found — using Docker to process testbench.yaml (one-time pull)"
         plugin_root="$(dirname "$composer_json")"
         yaml_rel="$(basename "$testbench_yaml")"
         docker run --rm -v "${plugin_root}:/work" -w /work python:3-alpine \
             python3 -c "$py_script" "$yaml_rel" composer.json 2>/dev/null || true
-        _info "Providers set from composer.json."
+        _info "Providers ensured from composer.json."
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Inject missing scripts into composer.json of the plugin.
+# ---------------------------------------------------------------------------
+_ensure_composer_scripts() {
+    composer_json="$1"
+
+    py_script="import json,sys
+scripts={
+    'bootstrap:workbench':'@php vendor/bin/testbench workbench:build --ansi',
+    'serve':'@php vendor/bin/testbench serve --ansi',
+    'fresh:workbench':'@php vendor/bin/testbench migrate:fresh --ansi --seed --seeder=WorkbenchSeeder'
+}
+with open(sys.argv[1]) as f:
+    d=json.load(f)
+s=d.setdefault('scripts',{})
+added=[]
+for name,cmd in scripts.items():
+    if name not in s:
+        s[name]=cmd
+        added.append(name)
+if added:
+    with open(sys.argv[1],'w') as f:
+        json.dump(d,f,indent=4,ensure_ascii=False)
+        f.write(chr(10))
+    print('Scripts added to composer.json: '+', '.join(added))
+else:
+    print('Composer scripts already present.')"
+
+    if command -v python3 > /dev/null 2>&1; then
+        result=$(python3 -c "$py_script" "$composer_json" 2>/dev/null || true)
+        [ -n "$result" ] && _info "$result"
+    else
+        plugin_root="$(dirname "$composer_json")"
+        docker run --rm -v "${plugin_root}:/work" -w /work python:3-alpine \
+            python3 -c "$py_script" composer.json 2>/dev/null || true
+        _info "Composer scripts checked."
     fi
 }
 
@@ -142,10 +178,47 @@ _ask_yn() {
 }
 
 # ---------------------------------------------------------------------------
-# Copy a stub to dest. If dest exists, ask before overwriting.
+# Copy a stub to dest. If dest exists, ask before overwriting (or force).
 # Returns 0 if a new file was written, 1 if existing file was kept.
 # ---------------------------------------------------------------------------
 _copy_stub() {
+    src="$1"
+    dest="$2"
+    label="$3"
+    force="${4:-0}"
+
+    if [ ! -f "$src" ]; then
+        _error "Stub not found: $src"
+        exit 1
+    fi
+
+    if [ -f "$dest" ]; then
+        if [ "$force" = "1" ]; then
+            cp "$src" "$dest"
+            _info "$label overwritten (--force)."
+            return 0
+        fi
+        _warn "$label already exists."
+        if _ask_yn "Overwrite $label?"; then
+            cp "$src" "$dest"
+            _info "$label overwritten."
+            return 0
+        else
+            _info "Keeping existing $label."
+            return 1
+        fi
+    fi
+
+    cp "$src" "$dest"
+    _info "$label created."
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# Copy a stub to dest silently. If dest exists, skip without prompting.
+# Returns 0 if a new file was written, 1 if existing file was skipped.
+# ---------------------------------------------------------------------------
+_copy_stub_silent() {
     src="$1"
     dest="$2"
     label="$3"
@@ -156,15 +229,8 @@ _copy_stub() {
     fi
 
     if [ -f "$dest" ]; then
-        _warn "$label already exists."
-        if _ask_yn "Overwrite $label?"; then
-            cp "$src" "$dest"
-            _info "$label overwritten."
-            return 0
-        else
-            _info "Keeping existing $label."
-            return 1
-        fi
+        _info "$label already exists — skipping."
+        return 1
     fi
 
     cp "$src" "$dest"
@@ -187,6 +253,14 @@ _require_docker() {
 # Commands
 # ---------------------------------------------------------------------------
 cmd_up() {
+    DETACH=0
+    for arg in "$@"; do
+        case "$arg" in
+            -d|--detach) DETACH=1 ;;
+            *) _warn "Unknown option for up: $arg" ;;
+        esac
+    done
+
     _require_docker
 
     PLUGIN_ROOT=$(_find_plugin_root)
@@ -196,29 +270,33 @@ cmd_up() {
     cd "$PLUGIN_ROOT"
 
     _section "Checking docker-compose.yml"
-    _copy_stub \
+    _copy_stub_silent \
         "$WORKBENCH_SOURCE/docker-compose.yml.stub" \
         "$PLUGIN_ROOT/docker-compose.yml" \
         "docker-compose.yml" || true
 
     _section "Checking testbench.yaml"
-    _copy_stub \
+    _copy_stub_silent \
         "$WORKBENCH_SOURCE/testbench.yaml.stub" \
         "$PLUGIN_ROOT/testbench.yaml" \
         "testbench.yaml" || true
 
-    # Fill providers whenever the stub placeholder is still present —
-    # handles both "new file" and "existing file that was never auto-filled".
-    if grep -q '# - Vendor\\YourPlugin\\YourPluginServiceProvider' "$PLUGIN_ROOT/testbench.yaml" 2>/dev/null; then
-        _section "Auto-detecting providers from composer.json"
-        _fill_providers "$PLUGIN_ROOT/testbench.yaml" "$PLUGIN_ROOT/composer.json"
-    fi
+    _section "Ensuring providers in testbench.yaml"
+    _ensure_providers "$PLUGIN_ROOT/testbench.yaml" "$PLUGIN_ROOT/composer.json"
+
+    _section "Checking composer.json scripts"
+    _ensure_composer_scripts "$PLUGIN_ROOT/composer.json"
 
     _section "Starting container"
     docker compose up --build -d
 
-    _info "Container started. Following logs (Ctrl+C to stop)..."
-    docker compose logs -f php
+    if [ "$DETACH" = "0" ]; then
+        _info "Container started. Following logs (Ctrl+C to stop)..."
+        docker compose logs -f php
+    else
+        _info "Container started in detached mode."
+        _info "Use 'workbench logs' to follow logs."
+    fi
 }
 
 cmd_down() {
@@ -253,17 +331,58 @@ cmd_shell() {
     docker compose exec php sh
 }
 
+cmd_install() {
+    FORCE=0
+    for arg in "$@"; do
+        case "$arg" in
+            -f|--force) FORCE=1 ;;
+            *) _warn "Unknown option for install: $arg" ;;
+        esac
+    done
+
+    PLUGIN_ROOT=$(_find_plugin_root)
+    _info "Plugin root : $PLUGIN_ROOT"
+    _info "Workbench   : $WORKBENCH_SOURCE"
+
+    cd "$PLUGIN_ROOT"
+
+    _section "Installing docker-compose.yml"
+    _copy_stub \
+        "$WORKBENCH_SOURCE/docker-compose.yml.stub" \
+        "$PLUGIN_ROOT/docker-compose.yml" \
+        "docker-compose.yml" \
+        "$FORCE" || true
+
+    _section "Installing testbench.yaml"
+    _copy_stub \
+        "$WORKBENCH_SOURCE/testbench.yaml.stub" \
+        "$PLUGIN_ROOT/testbench.yaml" \
+        "testbench.yaml" \
+        "$FORCE" || true
+
+    _section "Ensuring providers in testbench.yaml"
+    _ensure_providers "$PLUGIN_ROOT/testbench.yaml" "$PLUGIN_ROOT/composer.json"
+
+    _section "Checking composer.json scripts"
+    _ensure_composer_scripts "$PLUGIN_ROOT/composer.json"
+
+    _info "Install complete."
+}
+
 cmd_help() {
     printf "${BOLD}workbench${RESET} — Filament plugin development environment\n"
     printf "\n${BOLD}USAGE${RESET}\n"
-    printf "  workbench <command>\n"
+    printf "  workbench <command> [options]\n"
     printf "\n${BOLD}COMMANDS${RESET}\n"
-    printf "  ${GREEN}up${RESET}      Copy templates (if needed), start container, follow logs\n"
-    printf "  ${GREEN}down${RESET}    Stop and remove container\n"
-    printf "  ${GREEN}fresh${RESET}   Run migrate:fresh --seed inside the container\n"
-    printf "  ${GREEN}logs${RESET}    Follow container logs in real time\n"
-    printf "  ${GREEN}shell${RESET}   Open an interactive shell inside the container\n"
-    printf "  ${GREEN}help${RESET}    Show this help message\n"
+    printf "  ${GREEN}up${RESET} [-d]          Copy templates (if needed), ensure providers, inject composer scripts, start container\n"
+    printf "                   ${BOLD}-d${RESET}  start in detached mode (no log tailing)\n"
+    printf "  ${GREEN}install${RESET} [-f]      Copy templates, fill providers, inject composer scripts (no container start)\n"
+    printf "                   ${BOLD}-f, --force${RESET}  overwrite existing files without prompting\n"
+    printf "  ${GREEN}down${RESET}              Stop and remove container\n"
+    printf "  ${GREEN}fresh${RESET}             Run migrate:fresh --seed inside the container\n"
+    printf "  ${GREEN}logs${RESET}              Follow container logs in real time\n"
+    printf "  ${GREEN}shell${RESET}             Open an interactive shell inside the container\n"
+    printf "  ${GREEN}help${RESET}              Show this help message\n"
     printf "\n${BOLD}INSTALLATION — via git submodule (recommended, no Composer needed)${RESET}\n"
     printf "  git submodule add https://github.com/CoringaWc/filament-plugin-workbanch.git packages/workbench\n"
     printf "  ./packages/workbench/bin/workbench up\n"
@@ -279,9 +398,10 @@ COMMAND="${1:-help}"
 shift 2>/dev/null || true
 
 case "$COMMAND" in
-    up)              cmd_up ;;
+    up)              cmd_up "$@" ;;
     down)            cmd_down ;;
     fresh)           cmd_fresh ;;
+    install)         cmd_install "$@" ;;
     logs)            cmd_logs ;;
     shell)           cmd_shell ;;
     help|--help|-h)  cmd_help ;;
