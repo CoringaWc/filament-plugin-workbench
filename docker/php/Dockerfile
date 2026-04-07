@@ -37,7 +37,9 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd -g "${WWWGROUP}" workbench \
-    && useradd --no-log-init -u "${WWWUSER}" -g "${WWWGROUP}" -m workbench
+    && useradd --no-log-init -u "${WWWUSER}" -g "${WWWGROUP}" -m workbench \
+    && mkdir -p /tmp/composer/cache /tmp/.npm /tmp/.cache \
+    && chown -R "${WWWUSER}:${WWWGROUP}" /tmp/composer /tmp/.npm /tmp/.cache
 
 WORKDIR /var/www/html
 

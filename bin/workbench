@@ -445,7 +445,7 @@ cmd_help() {
     printf "  git submodule add https://github.com/CoringaWc/filament-plugin-workbench.git packages/workbench\n"
     printf "  ./packages/workbench/bin/workbench up\n"
     printf "\n${BOLD}INSTALLATION — via Composer${RESET}\n"
-    printf "  docker run --rm -v \"\$(pwd):/app\" -w /app composer:2 require --dev coringawc/filament-plugin-workbench\n"
+    printf "  docker run --rm -v \"\$(pwd):/app\" -w /app composer:2 require --dev --ignore-platform-req=ext-intl coringawc/filament-plugin-workbench\n"
     printf "  ./vendor/bin/workbench up\n"
 }
 

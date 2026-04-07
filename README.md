@@ -45,7 +45,7 @@ Use when the plugin already has Composer as its primary workflow.
 
 ```bash
 # 1. Install the package via Docker (no Composer needed on the host)
-docker run --rm -v "$(pwd):/app" -w /app composer:2 require --dev coringawc/filament-plugin-workbench
+docker run --rm -v "$(pwd):/app" -w /app composer:2 require --dev --ignore-platform-req=ext-intl coringawc/filament-plugin-workbench
 
 # 2. Start the environment
 ./vendor/bin/workbench up
@@ -184,7 +184,7 @@ git commit -m "chore: bump filament-plugin-workbench"
 composer update coringawc/filament-plugin-workbench
 
 # If using Docker (no Composer on host):
-docker run --rm -v "$(pwd):/app" -w /app composer:2 update coringawc/filament-plugin-workbench
+docker run --rm -v "$(pwd):/app" -w /app composer:2 update --ignore-platform-req=ext-intl coringawc/filament-plugin-workbench
 ```
 
 ---

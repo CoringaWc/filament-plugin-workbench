@@ -87,7 +87,7 @@ All commands that run PHP or Composer must go through `docker compose exec` or `
 ## `docker/php/Dockerfile` — Rules
 
 - Base: `php:8.4-cli-bookworm` (Debian)
-- Node: multi-stage copy from `node:22-bookworm-slim`
+- Node: installed from official tarball (SHA256-verified) — **not** multi-stage `FROM node:*`
 - Composer: copied from `composer:2`
 - Extensions: `intl`, `pcntl`, `zip`
 - Non-root user: `workbench` (uid/gid from build args `WWWUSER`/`WWWGROUP`)
