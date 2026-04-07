@@ -325,7 +325,7 @@ cmd_up() {
 
     _section "Checking docker-compose.yml"
     if _copy_stub_silent \
-        "$WORKBENCH_SOURCE/docker-compose.yml.stub" \
+        "$WORKBENCH_SOURCE/stubs/docker-compose.yml.stub" \
         "$PLUGIN_ROOT/docker-compose.yml" \
         "docker-compose.yml"; then
         _fix_docker_context "$PLUGIN_ROOT/docker-compose.yml" "$PLUGIN_ROOT"
@@ -333,7 +333,7 @@ cmd_up() {
 
     _section "Checking testbench.yaml"
     _copy_stub_silent \
-        "$WORKBENCH_SOURCE/testbench.yaml.stub" \
+        "$WORKBENCH_SOURCE/stubs/testbench.yaml.stub" \
         "$PLUGIN_ROOT/testbench.yaml" \
         "testbench.yaml" || true
 
@@ -404,7 +404,7 @@ cmd_install() {
 
     _section "Installing docker-compose.yml"
     if _copy_stub \
-        "$WORKBENCH_SOURCE/docker-compose.yml.stub" \
+        "$WORKBENCH_SOURCE/stubs/docker-compose.yml.stub" \
         "$PLUGIN_ROOT/docker-compose.yml" \
         "docker-compose.yml" \
         "$FORCE"; then
@@ -413,7 +413,7 @@ cmd_install() {
 
     _section "Installing testbench.yaml"
     _copy_stub \
-        "$WORKBENCH_SOURCE/testbench.yaml.stub" \
+        "$WORKBENCH_SOURCE/stubs/testbench.yaml.stub" \
         "$PLUGIN_ROOT/testbench.yaml" \
         "testbench.yaml" \
         "$FORCE" || true

@@ -22,8 +22,9 @@ filament-plugin-workbench/
     php/
       Dockerfile            ← Generic PHP 8.4-cli + Node 22 + Composer 2 image
       entrypoint.sh         ← Auto-installs vendor/ and node_modules/ on container start
-  docker-compose.yml.stub   ← Template copied to plugin root by `workbench up`
-  testbench.yaml.stub       ← Template copied to plugin root by `workbench up`
+  stubs/
+    docker-compose.yml.stub ← Template copied to plugin root by `workbench up`
+    testbench.yaml.stub     ← Template copied to plugin root by `workbench up`
   README.md                 ← Developer-facing documentation
   AGENTS.md                 ← This file
 ```
@@ -62,7 +63,7 @@ This means the Dockerfile lives in this package, not in the plugin.
 
 ### Symlink resolution
 
-`vendor/bin/workbench` is a Composer-managed symlink. The script resolves its real path using `readlink`/`realpath` to find `WORKBENCH_SOURCE` (the directory containing the stubs and Dockerfile).
+`vendor/bin/workbench` is a Composer-managed symlink. The script resolves its real path using `readlink`/`realpath` to find `WORKBENCH_SOURCE` (the package root directory; stubs live in `stubs/` and the Dockerfile in `docker/`).
 
 ### Plugin root detection
 

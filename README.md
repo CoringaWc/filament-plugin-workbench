@@ -156,8 +156,8 @@ my-plugin/
 | File / Folder                 | Location                                       | Why                                                          |
 | ----------------------------- | ---------------------------------------------- | ------------------------------------------------------------ |
 | `Dockerfile`, `entrypoint.sh` | **This package** (`packages/workbench/docker/`)| Generic, reusable infrastructure                             |
-| `docker-compose.yml.stub`     | **This package**                               | Template with `build.context` placeholder (resolved at copy) |
-| `testbench.yaml.stub`         | **This package**                               | Template with common variables documented                    |
+| `stubs/docker-compose.yml.stub` | **This package**                             | Template with `build.context` placeholder (resolved at copy) |
+| `stubs/testbench.yaml.stub`    | **This package**                             | Template with common variables documented                    |
 | `bin/workbench`               | **This package**                               | Bootstrapping CLI                                            |
 | `bin/sail`                    | **This package**                               | Sail-like development proxy CLI                              |
 | `workbench/`                  | **In the plugin**                              | Plugin-specific models, seeders, policies, resources, etc.   |
@@ -200,6 +200,7 @@ filament-plugin-workbench/
     php/
       Dockerfile            ← PHP 8.4-cli + Node 22 + Composer 2, non-root user
       entrypoint.sh         ← auto-installs vendor/ and node_modules/ on startup
-  docker-compose.yml.stub   ← docker-compose.yml template for plugins
-  testbench.yaml.stub       ← testbench.yaml template for plugins
+  stubs/
+    docker-compose.yml.stub ← docker-compose.yml template for plugins
+    testbench.yaml.stub     ← testbench.yaml template for plugins
 ```
