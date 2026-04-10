@@ -55,6 +55,26 @@ docker run --rm -v "$(pwd):/app" -w /app composer:2 require --dev --ignore-platf
 
 ---
 
+## File permissions
+
+The container runs as a non-root user (`workbench`) with the same UID/GID as the host user — so files created inside the container (screenshots, test results, generated code) are owned by your host user with no `sudo` needed.
+
+The default UID/GID is `1000`. If your host user has a different UID (run `id -u` to check), create a `.env` file in the plugin root before the first `workbench up`:
+
+```bash
+echo "WWWUSER=$(id -u)" >> .env
+echo "WWWGROUP=$(id -g)" >> .env
+```
+
+These values are read by `docker-compose.yml` and passed as build arguments to the image. If you skip this step on a non-`1000` host and find that generated files are owned by the wrong user, remove the existing image and volume, add the `.env`, and run `workbench up` again:
+
+```bash
+docker compose down --volumes --rmi local
+./vendor/bin/workbench up   # or ./packages/workbench/bin/workbench up
+```
+
+---
+
 ## Available commands
 
 | Command                     | Description                                                                              |
@@ -117,6 +137,41 @@ While `workbench` handles environment **lifecycle** (up/down/install), `sail` is
 ./vendor/bin/sail composer install
 ./vendor/bin/sail shell
 ```
+
+---
+
+## Generating documentation screenshots
+
+The workbench environment is pre-configured for Playwright screenshot generation. The PHP image includes all Chromium system libraries, and the Playwright browser binary is installed automatically on first container start when `@playwright/test` is listed as a dependency in the plugin's `package.json`.
+
+### Setup
+
+Add `@playwright/test` to the plugin's `package.json`:
+
+```json
+{
+    "scripts": {
+        "screenshots": "npx playwright test workbench/tmp-screenshots.spec.js"
+    },
+    "devDependencies": {
+        "@playwright/test": "^1.59.1"
+    }
+}
+```
+
+Create `workbench/tmp-screenshots.spec.js` with your Playwright test. On the next container start, the Chromium browser is downloaded to the `playwright-browsers` Docker volume — subsequent starts skip the download.
+
+### Running screenshots
+
+```bash
+docker compose exec php npm run screenshots
+```
+
+### How it works
+
+- **System libraries** — all Chromium shared libraries (`libglib2.0-0`, `libnss3`, `libpangocairo`, `libgbm1`, etc.) are baked into the Docker image — no manual `apt-get` needed.
+- **Browser binary** — installed on first container start via the entrypoint, using the exact version bundled with the project's `@playwright/test` package.
+- **Persistent cache** — the `playwright-browsers` named Docker volume mounts at `/tmp/.cache/ms-playwright`, so the 110 MB Chromium binary is downloaded only once per host machine.
 
 ---
 

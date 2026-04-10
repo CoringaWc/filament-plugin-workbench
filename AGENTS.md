@@ -90,10 +90,14 @@ All commands that run PHP or Composer must go through `docker compose exec` or `
 - Node: multi-stage copy from `node:22-bookworm-slim`
 - Composer: copied from `composer:2`
 - Extensions: `intl`, `pcntl`, `zip`
+- Chromium system libraries: `libglib2.0-0`, `libnss3`, `libnspr4`, `libdbus-1-3`, `libatk1.0-0`, `libatk-bridge2.0-0`, `libcups2`, `libxcb1`, `libxkbcommon0`, `libxcomposite1`, `libxdamage1`, `libxfixes3`, `libxrandr2`, `libgbm1`, `libpangocairo-1.0-0`, `libasound2` — installed in a separate `RUN` block so they do not pollute the Node/PHP install layer cache.
 - Non-root user: `workbench` (uid/gid from build args `WWWUSER`/`WWWGROUP`)
 - Entrypoint: `plugin-workbench-entrypoint` (the copied `entrypoint.sh`)
+- **Volume ownership:** The Dockerfile must `mkdir -p /tmp/.cache/ms-playwright` within the same `RUN` block that runs `chown -R workbench:workbench /tmp/.cache`. Docker named volumes are initialized from the image's directory tree on first use — if `ms-playwright` does not already exist in the image when the volume is first mounted, Docker creates it as `root:root`, which prevents the non-root `workbench` user from writing to it. This pre-creation ensures the volume inherits correct ownership.
 
 Do not add plugin-specific extensions. If a plugin needs extra PHP extensions, it should override the Dockerfile or open an issue.
+
+The Chromium system libraries are intentionally included in the base image even when a plugin does not use Playwright — the total overhead is ~20 MB and avoids any manual `apt-get` step for users who add screenshot generation to their plugin.
 
 ---
 
@@ -101,6 +105,7 @@ Do not add plugin-specific extensions. If a plugin needs extra PHP extensions, i
 
 - Runs `composer install` if `vendor/autoload.php` is missing or stale
 - Runs `npm install` if `package.json` exists and `node_modules/` is missing
+- Installs the Playwright Chromium browser if `@playwright/test` is in `package.json` and the browser cache (`$XDG_CACHE_HOME/ms-playwright`) is empty. Uses `ls -A` to detect empty vs. populated volume mount. The browser binary is stored in a named Docker volume (`playwright-browsers`) so it survives container restarts without re-downloading. **Important:** this relies on `ms-playwright` being pre-created in the Dockerfile with `workbench` ownership — see the Dockerfile volume ownership note above.
 - Ends with `exec "$@"` — always passes control to the CMD
 
 Do not add plugin-specific logic here. Keep it generic.
@@ -114,6 +119,7 @@ Do not add plugin-specific logic here. Keep it generic.
 - `build.context` uses the placeholder `__WORKBENCH_DOCKER_CONTEXT__` — resolved dynamically by `_fix_docker_context()` at copy time
 - Comments must explain all available `.env` variables
 - Must list Composer, HTTPS submodule, and SSH submodule installation instructions in the comment header
+- Must declare the `playwright-browsers` named volume mounted at `/tmp/.cache/ms-playwright` and set `PLAYWRIGHT_BROWSERS_PATH` environment variable accordingly — these are required for the automatic Playwright browser install in `entrypoint.sh` to cache correctly
 
 ### `testbench.yaml.stub`
 

@@ -37,6 +37,7 @@ services:
       COMPOSER_CACHE_DIR: /tmp/composer/cache
       NPM_CONFIG_CACHE: /tmp/.npm
       XDG_CACHE_HOME: /tmp/.cache
+      PLAYWRIGHT_BROWSERS_PATH: /tmp/.cache/ms-playwright
       WORKBENCH_PORT: ${WORKBENCH_PORT:-8001}
       PHP_CLI_SERVER_WORKERS: ${PHP_CLI_SERVER_WORKERS:-4}
     ports:
@@ -45,6 +46,7 @@ services:
       - .:/var/www/html
       - composer-cache:/tmp/composer/cache
       - npm-cache:/tmp/.npm
+      - playwright-browsers:/tmp/.cache/ms-playwright
     command:
       - sh
       - -lc
@@ -56,3 +58,4 @@ services:
 volumes:
   composer-cache:
   npm-cache:
+  playwright-browsers:

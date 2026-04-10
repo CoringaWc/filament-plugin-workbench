@@ -36,9 +36,33 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# System libraries required by Playwright's Chromium headless browser.
+# These allow plugins to generate documentation screenshots via `npm run screenshots`
+# without manual apt-get steps inside the container.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libasound2 \
+        libatk-bridge2.0-0 \
+        libatk1.0-0 \
+        libcups2 \
+        libdbus-1-3 \
+        libgbm1 \
+        libglib2.0-0 \
+        libnspr4 \
+        libnss3 \
+        libpangocairo-1.0-0 \
+        libxcb1 \
+        libxcomposite1 \
+        libxdamage1 \
+        libxfixes3 \
+        libxkbcommon0 \
+        libxrandr2 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN groupadd -g "${WWWGROUP}" workbench \
     && useradd --no-log-init -u "${WWWUSER}" -g "${WWWGROUP}" -m workbench \
-    && mkdir -p /tmp/composer/cache /tmp/.npm /tmp/.cache \
+    && mkdir -p /tmp/composer/cache /tmp/.npm /tmp/.cache/ms-playwright \
     && chown -R "${WWWUSER}:${WWWGROUP}" /tmp/composer /tmp/.npm /tmp/.cache
 
 WORKDIR /var/www/html
