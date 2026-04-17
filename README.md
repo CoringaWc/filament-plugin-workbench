@@ -73,6 +73,14 @@ docker compose down --volumes --rmi local
 ./vendor/bin/workbench up   # or ./packages/workbench/bin/workbench up
 ```
 
+The generated `docker-compose.yml` also injects `DB_DATABASE` with a persistent SQLite path inside the container by default:
+
+```bash
+DB_DATABASE=/var/www/html/vendor/orchestra/testbench-core/laravel/database/database.sqlite
+```
+
+This avoids Testbench falling back to the `testing` in-memory connection during HTTP requests handled by `vendor/bin/testbench serve`.
+
 ---
 
 ## Available commands
@@ -191,6 +199,8 @@ The script automatically detects `ServiceProvider`s declared in `composer.json`
 
 The scripts `bootstrap:workbench`, `serve`, and `fresh:workbench` are automatically added
 to the plugin's `composer.json` by `workbench up` or `workbench install` if they are missing.
+
+The generated `docker-compose.yml` also includes a default persistent SQLite path for the Testbench skeleton database so that `workbench up` produces a container-ready environment without extra manual configuration.
 
 After that, the plugin structure will look like:
 

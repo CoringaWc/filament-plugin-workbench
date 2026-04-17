@@ -20,6 +20,7 @@
 #   WORKBENCH_PORT          → development server port (default: 8001)
 #   WWWUSER                 → host user UID (default: 1000)
 #   WWWGROUP                → host group GID (default: 1000)
+#   DB_DATABASE             → SQLite file path inside the container (default: Testbench skeleton sqlite)
 #   PHP_CLI_SERVER_WORKERS  → number of PHP CLI server workers (default: 4)
 
 services:
@@ -38,6 +39,7 @@ services:
       NPM_CONFIG_CACHE: /tmp/.npm
       XDG_CACHE_HOME: /tmp/.cache
       PLAYWRIGHT_BROWSERS_PATH: /tmp/.cache/ms-playwright
+      DB_DATABASE: ${DB_DATABASE:-/var/www/html/vendor/orchestra/testbench-core/laravel/database/database.sqlite}
       WORKBENCH_PORT: ${WORKBENCH_PORT:-8001}
       PHP_CLI_SERVER_WORKERS: ${PHP_CLI_SERVER_WORKERS:-4}
     ports:

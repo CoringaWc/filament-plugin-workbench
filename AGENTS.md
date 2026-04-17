@@ -120,6 +120,7 @@ Do not add plugin-specific logic here. Keep it generic.
 - Comments must explain all available `.env` variables
 - Must list Composer, HTTPS submodule, and SSH submodule installation instructions in the comment header
 - Must declare the `playwright-browsers` named volume mounted at `/tmp/.cache/ms-playwright` and set `PLAYWRIGHT_BROWSERS_PATH` environment variable accordingly — these are required for the automatic Playwright browser install in `entrypoint.sh` to cache correctly
+- Must inject `DB_DATABASE` with the default absolute path `/var/www/html/vendor/orchestra/testbench-core/laravel/database/database.sqlite` so HTTP requests served inside the container do not fall back to Testbench's `testing` in-memory connection
 
 ### `testbench.yaml.stub`
 
